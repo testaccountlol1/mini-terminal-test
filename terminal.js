@@ -70,7 +70,7 @@ const commands = {
                 });
             });
         }
-
+        
         if (args[0] === ">") {
 
             if (!args[1]) return;
@@ -106,7 +106,52 @@ const commands = {
         });
 
     },
+    calculater(args) {
 
+    if (args.length < 3) {
+        console.log("Usage: calculater <operator> <num1> <num2>");
+        return;
+    }
+
+    const op = args[0];
+    const a = Number(args[1]);
+    const b = Number(args[2]);
+
+    if (isNaN(a) || isNaN(b)) {
+        console.log("Invalid numbers");
+        return;
+    }
+
+    let result;
+
+    switch (op) {
+        case "+":
+            result = a + b;
+            break;
+
+        case "-":
+            result = a - b;
+            break;
+
+        case "*":
+            result = a * b;
+            break;
+
+        case "/":
+            if (b === 0) {
+                console.log("Division by zero");
+                return;
+            }
+            result = a / b;
+            break;
+
+        default:
+            console.log("Unknown operator");
+            return;
+    }
+
+    console.log(result);
+},
     python3(args) {
 
         if (!args.length) {
@@ -239,5 +284,6 @@ async function handleCommand(input) {
 function prompt() {
     rl.question(`${process.cwd()} $ `, handleCommand);
 }
+
 
 prompt();
