@@ -205,11 +205,19 @@ const commands = {
                                 spawn("gcc", [file, "-o", exe],
                                     { stdio: "inherit" });
 
-                            compile.on("close", () => {
+                            compile.on("close", code => {
 
-                                spawn(exe, [], {
-                                    stdio: "inherit"
-                                }).on("close", () => {
+                                if (code !== 0) {
+                                    promptC();
+                                    return;
+                                }
+
+                                const run =
+                                    spawn(exe, [], {
+                                        stdio: "inherit"
+                                    });
+
+                                run.on("close", () => {
                                     buffer = [];
                                     promptC();
                                 });
@@ -343,7 +351,9 @@ function evaluate(tokens) {
 
             const cmd = tokens[i];
 
-            if (cmd === "node" || cmd === "python" || cmd === "c")
+            if (cmd === "node" ||
+                cmd === "python" ||
+                cmd === "c")
                 return tokens;
 
             let needed = 0;
