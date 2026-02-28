@@ -9,41 +9,23 @@ const rl = readline.createInterface({
 });
 
 const manuals = {
-
-    help: "help - Show command list",
-
-    ls: "ls - List files",
-
-    cd: "cd <dir> - Change directory",
-
-    cat: "cat <file>\ncat > <file>\ncat >> <file>",
-
-    touch: "touch <file> - Create file",
-
-    mkdir: "mkdir <dir> - Create directory",
-
-    rm: "rm <name> - Delete file/folder",
-
-    node: "node - Open REPL\nnode <file.js> - Run JS file",
-
-    c: "c <file.c> - Compile C program\nc - Open mini C console",
-
+    help: "help - Show commands",
+    ls: "ls - List directory files",
+    cd: "cd <dir>",
+    cat: "cat <file> | cat > <file> | cat >> <file>",
+    touch: "touch <file>",
+    mkdir: "mkdir <dir>",
+    rm: "rm <name>",
+    node: "node | node <file.js>",
+    python: "python | python <file.py>",
+    c: "c | c <file.c>",
     calculator: "calculator <+|-|*|/> <a> <b>",
-
     random: "random <min> <max>",
-
-    add: "add [>] name code - Create dynamic command",
-
     gitinit: "gitinit",
-
     gitadd: "gitadd",
-
     gitcommit: "gitcommit <message>",
-
     gitpush: "gitpush",
-
     clear: "clear",
-
     exit: "exit"
 };
 
@@ -52,9 +34,7 @@ const commands = {
     ls() {
         try {
             fs.readdirSync(process.cwd()).forEach(f => console.log(f));
-        } catch {
-            console.log("Error listing directory");
-        }
+        } catch {}
     },
 
     cd(args) {
@@ -79,13 +59,13 @@ const commands = {
 
                 rl.question("Enter text: ", text => {
 
-                    const filePath = path.join(process.cwd(), args[1]);
+                    const filePath =
+                        path.join(process.cwd(), args[1]);
 
                     try {
 
                         if (args[0] === ">")
                             fs.writeFileSync(filePath, text + "\n");
-
                         else
                             fs.appendFileSync(filePath, text + "\n");
 
@@ -113,10 +93,7 @@ const commands = {
 
         try {
             fs.writeFileSync(path.join(process.cwd(), args[0]), "");
-            console.log("File created");
-        } catch {
-            console.log("Creation failed");
-        }
+        } catch {}
     },
 
     mkdir(args) {
@@ -124,10 +101,7 @@ const commands = {
 
         try {
             fs.mkdirSync(path.join(process.cwd(), args[0]));
-            console.log("Directory created");
-        } catch {
-            console.log("Creation failed");
-        }
+        } catch {}
     },
 
     rm(args) {
@@ -138,11 +112,7 @@ const commands = {
                 recursive: true,
                 force: true
             });
-
-            console.log("Deleted");
-        } catch {
-            console.log("Deletion failed");
-        }
+        } catch {}
     },
 
     node(args) {
@@ -155,7 +125,8 @@ const commands = {
                 return;
             }
 
-            const file = path.join(process.cwd(), args[0]);
+            const file =
+                path.join(process.cwd(), args[0]);
 
             if (!fs.existsSync(file)) {
                 console.log("File not found");
@@ -168,14 +139,121 @@ const commands = {
         });
     },
 
+    python(args) {
+
+        return new Promise(resolve => {
+
+            if (!args.length) {
+                spawn("python", [], {
+                    stdio: "inherit"
+                }).on("close", resolve);
+                return;
+            }
+
+            const file =
+                path.join(process.cwd(), args[0]);
+
+            if (!fs.existsSync(file)) {
+                console.log("File not found");
+                resolve();
+                return;
+            }
+
+            spawn("python", [file], {
+                stdio: "inherit"
+            }).on("close", resolve);
+        });
+    },
+
+    c(args) {
+
+        return new Promise(resolve => {
+
+            if (!args.length) {
+
+                console.log("C Console");
+                console.log(".run to compile");
+                console.log(".exit to quit");
+
+                let buffer = [];
+
+                const promptC = () => {
+
+                    rl.question("c> ", line => {
+
+                        if (line === ".exit") {
+                            resolve();
+                            return;
+                        }
+
+                        if (line === ".run") {
+
+                            const file =
+                                path.join(process.cwd(),
+                                    "temp_shell_c.c");
+
+                            const code =
+                                "#include <stdio.h>\nint main(){\n" +
+                                buffer.join("\n") +
+                                "\nreturn 0;}\n";
+
+                            fs.writeFileSync(file, code);
+
+                            const exe = file.replace(".c", "");
+
+                            const compile =
+                                spawn("gcc", [file, "-o", exe],
+                                    { stdio: "inherit" });
+
+                            compile.on("close", () => {
+
+                                spawn(exe, [], {
+                                    stdio: "inherit"
+                                }).on("close", () => {
+                                    buffer = [];
+                                    promptC();
+                                });
+
+                            });
+
+                            return;
+                        }
+
+                        buffer.push(line);
+                        promptC();
+                    });
+                };
+
+                promptC();
+                return;
+            }
+
+            const file =
+                path.join(process.cwd(), args[0]);
+
+            if (!fs.existsSync(file)) {
+                console.log("File not found");
+                resolve();
+                return;
+            }
+
+            const exe = file.replace(".c", "");
+
+            spawn("gcc", [file, "-o", exe],
+                { stdio: "inherit" })
+                .on("close", () => {
+
+                    spawn(exe, [], {
+                        stdio: "inherit"
+                    }).on("close", resolve);
+
+                });
+        });
+    },
+
     calculator(args, silent = false) {
 
-        if (args.length < 3) {
-            if (!silent)
-                console.log("calculator <+|-|*|/> a b");
-
-            return null;
-        }
+        if (args.length < 3) return null;
 
         const op = args[0];
         const a = Number(args[1]);
@@ -186,13 +264,16 @@ const commands = {
         let result;
 
         switch (op) {
+
             case "+": result = a + b; break;
             case "-": result = a - b; break;
             case "*": result = a * b; break;
+
             case "/":
                 if (b === 0) return null;
                 result = a / b;
                 break;
+
             default:
                 return null;
         }
@@ -213,7 +294,8 @@ const commands = {
         if (min > max) [min, max] = [max, min];
 
         const value =
-            Math.floor(Math.random() * (max - min + 1)) + min;
+            Math.floor(Math.random() *
+            (max - min + 1)) + min;
 
         if (!silent) console.log(value);
 
@@ -230,10 +312,8 @@ const commands = {
 
     gitcommit(args) {
         const msg = args.join(" ") || "update";
-
-        return spawn("git", ["commit", "-m", msg], {
-            stdio: "inherit"
-        });
+        return spawn("git", ["commit", "-m", msg],
+            { stdio: "inherit" });
     },
 
     gitpush() {
@@ -241,8 +321,8 @@ const commands = {
     },
 
     help() {
-        Object.keys(manuals).forEach(k =>
-            console.log(manuals[k])
+        Object.values(manuals).forEach(m =>
+            console.log(m)
         );
     },
 
@@ -255,7 +335,6 @@ const commands = {
     }
 };
 
-// Recursive parser
 function evaluate(tokens) {
 
     for (let i = 0; i < tokens.length; i++) {
@@ -264,14 +343,16 @@ function evaluate(tokens) {
 
             const cmd = tokens[i];
 
-            if (cmd === "node") return tokens;
+            if (cmd === "node" || cmd === "python" || cmd === "c")
+                return tokens;
 
             let needed = 0;
 
             if (cmd === "calculator") needed = 3;
             if (cmd === "random") needed = 2;
 
-            const sub = tokens.slice(i + 1, i + 1 + needed);
+            const sub =
+                tokens.slice(i + 1, i + 1 + needed);
 
             const result =
                 commands[cmd](evaluate(sub), true);
@@ -289,7 +370,8 @@ function evaluate(tokens) {
 
 async function handleInput(input) {
 
-    let tokens = input.trim().split(" ").filter(Boolean);
+    let tokens =
+        input.trim().split(" ").filter(Boolean);
 
     if (!tokens.length) return prompt();
 
@@ -298,8 +380,11 @@ async function handleInput(input) {
         return prompt();
     }
 
-    if (tokens[0] === "node") {
-        await commands.node(tokens.slice(1));
+    if (tokens[0] === "node" ||
+        tokens[0] === "python" ||
+        tokens[0] === "c") {
+
+        await commands[tokens[0]](tokens.slice(1));
         return prompt();
     }
 
