@@ -1,350 +1,201 @@
 import fs from "fs";
-import readline from "readline";
 import path from "path";
 import { spawn } from "child_process";
-
-console.log("press ctrl + c to exit");
+import readline from "readline";
 
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
 });
 
-const manuals = {
-    clear: "clear - Clear terminal screen",
-    cd: "cd <dir> - Change current working directory",
-    ls: "ls - List files in current directory",
-    cat: "cat <file>\ncat >> <file> - Append text\ncat > <file> - Overwrite file content",
-    echo: "echo <text> - Print text to terminal",
-    touch: "touch <file> - Create empty file",
-    mkdir: "mkdir <dir> - Create directory",
-    rm: "rm <name> - Delete file or directory recursively",
-    python: "python - Open Python REPL or run python file",
-    python3: "python3 <file> - Run python3 script file",
-    node: "node - Open Node.js REPL or run JavaScript file",
-    add: "add [> optional] <name> <code> - Create dynamic command",
-    calculator: "calculator <operator> <num1> <num2>\nSupported operators: + - * /",
-    man: "man <command> - Show manual page",
-    gitinit: "gitinit - Initialize git repository",
-    gitadd: "gitadd - Stage all files",
-    gitcommit: "gitcommit <message> - Create git commit",
-    gitpush: "gitpush - Push commits to remote repository"
-};
-
 const commands = {
 
-    clear() {
-        console.log("\n".repeat(20));
+    help() {
+        console.log(`
+Available Commands:
+
+calculator <+|-|*|/> <a> <b>
+    Performs math operations.
+    Supports nesting.
+
+random <min> <max>
+    Generates a random number between min and max.
+    Supports nesting.
+
+node
+    Opens Node.js REPL.
+
+node <file.js>
+    Runs a JavaScript file.
+
+clear
+    Clears the console.
+
+exit
+    Exits the shell.
+
+Examples:
+    calculator + 5 3
+    random 1 10
+    random calculator * random 1 10 3 10
+`);
     },
 
-    cd(args) {
-        if (!args[0]) return;
-        try {
-            process.chdir(path.resolve(process.cwd(), args[0]));
-        } catch {
-            console.log("Directory not found");
-        }
-    },
-
-    ls() {
-        try {
-            fs.readdirSync(process.cwd()).forEach(f => console.log(f));
-        } catch {
-            console.log("Error reading directory");
-        }
-    },
-
-    cat(args) {
-
-        if (!args[0]) {
-            console.log("cat requires arguments");
-            return;
-        }
-
-        if (args[0] === ">>") {
-
-            if (!args[1]) return;
-
-            return new Promise(resolve => {
-                rl.question("Enter text: ", text => {
-                    try {
-                        fs.appendFileSync(
-                            path.join(process.cwd(), args[1]),
-                            text + "\n"
-                        );
-                    } catch {}
-
-                    resolve();
-                });
-            });
-        }
-
-        if (args[0] === ">") {
-
-            if (!args[1]) return;
-
-            return new Promise(resolve => {
-                rl.question("Enter text: ", text => {
-                    try {
-                        fs.writeFileSync(
-                            path.join(process.cwd(), args[1]),
-                            text + "\n"
-                        );
-                    } catch {}
-
-                    resolve();
-                });
-            });
-        }
-
-        try {
-            console.log(
-                fs.readFileSync(
-                    path.join(process.cwd(), args[0]),
-                    "utf8"
-                )
-            );
-        } catch {
-            console.log("File not found");
-        }
-    },
-
-    touch(args) {
-        if (!args[0]) return;
-
-        try {
-            fs.writeFileSync(path.join(process.cwd(), args[0]), "");
-            console.log("File created");
-        } catch {
-            console.log("Creation failed");
-        }
-    },
-
-    mkdir(args) {
-        if (!args[0]) return;
-
-        try {
-            fs.mkdirSync(path.join(process.cwd(), args[0]));
-            console.log("Directory created");
-        } catch {
-            console.log("Creation failed");
-        }
-    },
-
-    rm(args) {
-        if (!args[0]) return;
-
-        try {
-            fs.rmSync(path.join(process.cwd(), args[0]), {
-                recursive: true,
-                force: true
-            });
-
-            console.log("Deleted");
-        } catch {
-            console.log("Deletion failed");
-        }
-    },
-
-    python(args) {
-
-        return new Promise(resolve => {
-
-            const py = spawn("python", args.length ? args : [], {
-                stdio: "inherit"
-            });
-
-            py.on("close", resolve);
-        });
-    },
-
-    python3(args) {
-
-        if (!args.length) {
-            console.log("python3 requires file argument");
-            return;
-        }
-
-        return new Promise(resolve => {
-
-            const py = spawn("python3", args, {
-                stdio: "inherit"
-            });
-
-            py.on("close", resolve);
-        });
-    },
-
-    node(args) {
-
-        return new Promise(resolve => {
-
-            const nd = spawn("node", args.length ? args : [], {
-                stdio: "inherit"
-            });
-
-            nd.on("close", resolve);
-        });
-    },
-
-    echo(args) {
-        if (!args.length) {
-            console.log("i cant echo nothning");
-            return;
-        }
-        console.log(args);
-    },
-
-    add(args) {
-
-        if (!args.length) {
-            console.log("Usage: add [> optional] name code");
-            return;
-        }
-
-        let overwrite = false;
-        let index = 0;
-
-        if (args[0] === ">") {
-            overwrite = true;
-            index = 1;
-        }
-
-        const name = args[index];
-        const code = args.slice(index + 1).join(" ");
-
-        if (!name || !code) {
-            console.log("Invalid syntax");
-            return;
-        }
-
-        if (!overwrite && commands[name]) {
-            console.log("Command exists");
-            return;
-        }
-
-        try {
-            const fn = new Function("args", code);
-
-            commands[name] = async function(cmdArgs) {
-                return fn(cmdArgs);
-            };
-
-            console.log(`Command ${name} added`);
-        } catch {
-            console.log("Command creation failed");
-        }
-    },
-
-    calculator(args) {
-
+    calculator(args, silent = false) {
         if (args.length < 3) {
-            console.log("Usage: calculator <operator> <num1> <num2>");
-            return;
+            if (!silent) console.log("Usage: calculator <+|-|*|/> <a> <b>");
+            return null;
         }
 
-        const op = args[0];
+        const operator = args[0];
         const a = Number(args[1]);
         const b = Number(args[2]);
 
         if (isNaN(a) || isNaN(b)) {
-            console.log("Invalid numbers");
-            return;
+            if (!silent) console.log("Numbers only.");
+            return null;
         }
 
         let result;
 
-        switch (op) {
-            case "+":
-                result = a + b;
-                break;
-            case "-":
-                result = a - b;
-                break;
-            case "*":
-                result = a * b;
-                break;
+        switch (operator) {
+            case "+": result = a + b; break;
+            case "-": result = a - b; break;
+            case "*": result = a * b; break;
             case "/":
                 if (b === 0) {
-                    console.log("Division by zero");
-                    return;
+                    if (!silent) console.log("Cannot divide by zero.");
+                    return null;
                 }
                 result = a / b;
                 break;
             default:
-                console.log("Unknown operator");
+                if (!silent) console.log("Invalid operator.");
+                return null;
+        }
+
+        if (!silent) console.log(result);
+        return result;
+    },
+
+    random(args, silent = false) {
+        if (args.length < 2) {
+            if (!silent) console.log("Usage: random <min> <max>");
+            return null;
+        }
+
+        let min = Number(args[0]);
+        let max = Number(args[1]);
+
+        if (isNaN(min) || isNaN(max)) {
+            if (!silent) console.log("Numbers only.");
+            return null;
+        }
+
+        if (min > max) [min, max] = [max, min];
+
+        const value = Math.floor(Math.random() * (max - min + 1)) + min;
+
+        if (!silent) console.log(value);
+        return value;
+    },
+
+    node(args) {
+        return new Promise(resolve => {
+
+            // REPL mode
+            if (!args.length) {
+                const repl = spawn("node", [], { stdio: "inherit" });
+                repl.on("close", resolve);
                 return;
-        }
+            }
 
-        console.log(result);
-    },
+            // File mode
+            const file = path.join(process.cwd(), args[0]);
 
-    gitinit() {
-        return new Promise(resolve => {
-            spawn("git", ["init"], { stdio: "inherit" })
-                .on("close", resolve);
+            if (!fs.existsSync(file)) {
+                console.log("File does not exist.");
+                resolve();
+                return;
+            }
+
+            const run = spawn("node", [file], { stdio: "inherit" });
+            run.on("close", resolve);
         });
     },
 
-    gitadd() {
-        return new Promise(resolve => {
-            spawn("git", ["add", "."], { stdio: "inherit" })
-                .on("close", resolve);
-        });
+    clear() {
+        console.clear();
     },
 
-    gitcommit(args) {
-
-        const msg = args.length ? args.join(" ") : "update";
-
-        return new Promise(resolve => {
-            spawn("git", ["commit", "-m", msg], { stdio: "inherit" })
-                .on("close", resolve);
-        });
-    },
-
-    gitpush() {
-        return new Promise(resolve => {
-            spawn("git", ["push"], { stdio: "inherit" })
-                .on("close", resolve);
-        });
-    },
-
-    man(args) {
-
-        if (!args[0]) {
-            console.log("Specify command");
-            return;
-        }
-
-        if (manuals[args[0]]) {
-            console.log("\n" + manuals[args[0]] + "\n");
-        } else {
-            console.log("No manual entry");
-        }
+    exit() {
+        console.log("Goodbye.");
+        process.exit(0);
     }
 
 };
 
-async function handleCommand(input) {
+// 🔥 Recursive evaluator for nesting
+function evaluate(tokens) {
+    for (let i = 0; i < tokens.length; i++) {
 
-    const parts = input.trim().split(" ");
-    const cmd = parts[0];
-    const args = parts.slice(1);
+        if (commands[tokens[i]]) {
 
-    if (commands[cmd]) {
+            const cmdName = tokens[i];
 
-        const result = commands[cmd](args);
+            if (cmdName === "node" || cmdName === "clear" || cmdName === "exit" || cmdName === "help")
+                return tokens;
 
-        if (result instanceof Promise) {
-            await result;
+            let needed = 0;
+            if (cmdName === "calculator") needed = 3;
+            if (cmdName === "random") needed = 2;
+
+            const subTokens = tokens.slice(i + 1, i + 1 + needed);
+
+            const evaluatedArgs = evaluate(subTokens);
+
+            const result = commands[cmdName](evaluatedArgs, true);
+
+            if (result === null) return tokens;
+
+            tokens.splice(i, needed + 1, String(result));
+
+            return evaluate(tokens);
         }
-    } else if (cmd) {
-        console.log("Unknown command");
     }
+
+    return tokens;
+}
+
+async function handleInput(input) {
+
+    let tokens = input.trim().split(" ").filter(Boolean);
+
+    if (!tokens.length) return prompt();
+
+    if (!commands[tokens[0]]) {
+        console.log("Unknown command.");
+        return prompt();
+    }
+
+    // Node is async and shouldn't be nested
+    if (tokens[0] === "node") {
+        await commands.node(tokens.slice(1));
+        return prompt();
+    }
+
+    tokens = evaluate(tokens);
+
+    if (commands[tokens[0]]) {
+        commands[tokens[0]](tokens.slice(1));
+    }
+
     prompt();
 }
+
 function prompt() {
-    rl.question(`${process.cwd()} $ `, handleCommand);
+    rl.question("> ", handleInput);
 }
+
+console.log("Advanced JS Shell Started");
 prompt();
