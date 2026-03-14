@@ -18,9 +18,6 @@ const manuals = {
     rm: "rm <file>",
     node: "node | node <file>",
     python: "python | python <file>",
-    c: "c | c <file>",
-    calculator: "calculator <+|-|*|/> <a> <b>",
-    random: "random <min> <max>",
     clear: "clear",
     exit: "exit"
 };
